@@ -7,18 +7,19 @@ import yt_dlp
 TOKEN = "8838743968:AAGjIYur0Haoy5j-Btb8XR1oVfdTdM5f6Z4"
 bot = telebot.TeleBot(TOKEN)
 
-# Dapatkan direktori saat ini untuk lokasi ffmpeg
+# Dapatkan direktori saat ini untuk lokasi ffmpeg lokal
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     text = (
-        "🤖 *Bot Media Downloader & AI*\n\n"
+        "🤖 *Bot Media Downloader*\n\n"
         "Cara pakai:\n"
         "1. `/lagu <judul>` -> Cari & download MP3 YouTube\n"
         "2. *Kirim Link Langsung* -> Download video/reels/gambar dari TikTok, IG, YT, X, FB, dll."
     )
     bot.reply_to(message, text, parse_mode='Markdown')
+
 
 # --- 1. FITUR CARI LAGU VIA COMMAND /lagu ---
 @bot.message_handler(commands=['lagu'])
@@ -36,6 +37,8 @@ def download_song(message):
         'outtmpl': os.path.join(BASE_DIR, 'song_%(id)s.%(ext)s'),
         'max_filesize': 50 * 1024 * 1024, # Max 50 MB
         'ffmpeg_location': BASE_DIR,
+        'socket_timeout': 60,
+        'retries': 10,
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -88,12 +91,14 @@ def download_from_link(message):
     url = message.text.strip()
     msg = bot.reply_to(message, "⏳ Sedang mengunduh media dari link...")
 
-    # Template output unik berbasis ID media
+    # yt-dlp otomatis memilih opsi video/foto/audio terbaik di bawah 50MB
     ydl_opts = {
         'format': 'best[filesize<50M]/bestvideo[filesize<40M]+bestaudio/best',
         'outtmpl': os.path.join(BASE_DIR, 'media_%(id)s.%(ext)s'),
         'max_filesize': 50 * 1024 * 1024,
         'ffmpeg_location': BASE_DIR,
+        'socket_timeout': 60,  # Cegah Read Timeout
+        'retries': 10,         # Coba ulang koneksi jika lag
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'quiet': True
     }
