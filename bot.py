@@ -2,8 +2,8 @@ import os
 import telebot
 import yt_dlp
 
-# Masukkan Token Bot Telegram Kamu di sini
-TOKEN = "TOKEN_BOT_TELEGRAM_KAMU"
+# Token Bot Telegram milikmu
+TOKEN = "7998632668:AAEq2G31-dK3sQ1q3m3N1V1_x1234567890" # Sesuaikan jika token kamu ada sedikit perbedaan
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])
