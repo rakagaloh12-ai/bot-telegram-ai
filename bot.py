@@ -3,7 +3,7 @@ import telebot
 import yt_dlp
 
 # Token Bot Telegram milikmu
-TOKEN = "7998632668:AAEq2G31-dK3sQ1q3m3N1V1_x1234567890" # Sesuaikan jika token kamu ada sedikit perbedaan
+TOKEN = "8838743968:AAGjIYur0Haoy5j-Btb8XR1oVfdTdM5f6Z4" # Sesuaikan jika token kamu ada sedikit perbedaan
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])
