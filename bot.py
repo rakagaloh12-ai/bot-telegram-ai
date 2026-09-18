@@ -1,10 +1,14 @@
 import os
+import glob
 import telebot
 import yt_dlp
 
-# Token Bot Telegram Kamu
+# Token Bot Telegram
 TOKEN = "8838743968:AAGjIYur0Haoy5j-Btb8XR1oVfdTdM5f6Z4"
 bot = telebot.TeleBot(TOKEN)
+
+# Dapatkan direktori saat ini untuk lokasi ffmpeg
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -12,7 +16,7 @@ def send_welcome(message):
         "🤖 *Bot Media Downloader & AI*\n\n"
         "Cara pakai:\n"
         "1. `/lagu <judul>` -> Cari & download MP3 YouTube\n"
-        "2. *Kirim Link Langsung* -> Download video/reels dari TikTok, IG, YT, X, FB, dll."
+        "2. *Kirim Link Langsung* -> Download video/reels/gambar dari TikTok, IG, YT, X, FB, dll."
     )
     bot.reply_to(message, text, parse_mode='Markdown')
 
@@ -29,9 +33,9 @@ def download_song(message):
 
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': '%(title)s.%(ext)s',
+        'outtmpl': os.path.join(BASE_DIR, 'song_%(id)s.%(ext)s'),
         'max_filesize': 50 * 1024 * 1024, # Max 50 MB
-        'ffmpeg_location': '.', # Lokasi ffmpeg lokal di folder bot
+        'ffmpeg_location': BASE_DIR,
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -49,11 +53,15 @@ def download_song(message):
             if 'entries' in info and len(info['entries']) > 0:
                 info = info['entries'][0]
             
-            base_filename = ydl.prepare_filename(info)
-            filename = os.path.splitext(base_filename)[0] + ".mp3"
             title = info.get('title', query_str)
+            media_id = info.get('id', '')
+            
+            # Cari file mp3 yang dihasilkan
+            possible_files = glob.glob(os.path.join(BASE_DIR, f"song_{media_id}.*"))
+            if possible_files:
+                filename = possible_files[0]
 
-        if os.path.exists(filename):
+        if filename and os.path.exists(filename):
             if os.path.getsize(filename) > 50 * 1024 * 1024:
                 bot.edit_message_text("❌ Ukuran file lebih dari 50 MB (batas Telegram).", message.chat.id, msg.message_id)
                 os.remove(filename)
@@ -68,7 +76,10 @@ def download_song(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, msg.message_id)
         if filename and os.path.exists(filename):
-            os.remove(filename)
+            try:
+                os.remove(filename)
+            except:
+                pass
 
 
 # --- 2. FITUR DOWNLOAD LANGSUNG LEWAT LINK (TikTok, IG, YT, dll) ---
@@ -77,11 +88,12 @@ def download_from_link(message):
     url = message.text.strip()
     msg = bot.reply_to(message, "⏳ Sedang mengunduh media dari link...")
 
+    # Template output unik berbasis ID media
     ydl_opts = {
-        'format': 'best[filesize<50M]/bestvideo[filesize<25M]+bestaudio/best',
-        'outtmpl': 'downloaded_media.%(ext)s',
+        'format': 'best[filesize<50M]/bestvideo[filesize<40M]+bestaudio/best',
+        'outtmpl': os.path.join(BASE_DIR, 'media_%(id)s.%(ext)s'),
         'max_filesize': 50 * 1024 * 1024,
-        'ffmpeg_location': '.', # Lokasi ffmpeg lokal
+        'ffmpeg_location': BASE_DIR,
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'quiet': True
     }
@@ -90,17 +102,27 @@ def download_from_link(message):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
             title = info.get('title', 'Media')
+            media_id = info.get('id', '')
 
-        if os.path.exists(filename):
+            # Cari file hasil unduhan
+            possible_files = glob.glob(os.path.join(BASE_DIR, f"media_{media_id}.*"))
+            if possible_files:
+                filename = possible_files[0]
+
+        if filename and os.path.exists(filename):
             if os.path.getsize(filename) > 50 * 1024 * 1024:
                 bot.edit_message_text("❌ Ukuran media lebih dari 50 MB.", message.chat.id, msg.message_id)
                 os.remove(filename)
             else:
+                ext = os.path.splitext(filename)[1].lower()
                 with open(filename, 'rb') as media_file:
-                    if filename.endswith(('.mp4', '.mkv', '.webm', '.mov')):
+                    if ext in ['.mp4', '.mkv', '.webm', '.mov']:
                         bot.send_video(message.chat.id, media_file, caption=f"🎬 *{title}*", parse_mode='Markdown')
+                    elif ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                        bot.send_photo(message.chat.id, media_file, caption=f"🖼️ *{title}*", parse_mode='Markdown')
+                    elif ext in ['.mp3', '.m4a', '.ogg', '.wav']:
+                        bot.send_audio(message.chat.id, media_file, caption=f"🎵 *{title}*", parse_mode='Markdown')
                     else:
                         bot.send_document(message.chat.id, media_file, caption=f"📁 *{title}*", parse_mode='Markdown')
                 
@@ -112,7 +134,10 @@ def download_from_link(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Gagal download dari link. Error: {str(e)}", message.chat.id, msg.message_id)
         if filename and os.path.exists(filename):
-            os.remove(filename)
+            try:
+                os.remove(filename)
+            except:
+                pass
 
 # Jalankan Bot
 bot.infinity_polling()
